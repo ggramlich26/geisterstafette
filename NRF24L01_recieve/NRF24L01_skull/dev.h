@@ -22,6 +22,11 @@
 #define PULSEPART1TIME		10000
 #define PULSEPART2TIME		5000
 
+#define BAT_MEAS_PIN		A6
+#define BAT_CONV_FACTOR		1.1*6
+#define BAT_UPDATE_INTERVAL	1000 //time in ms after which a new battery measurement will be performed. It takes 5 times this time befor a low battery voltage will actually be considered as low
+#define BAT_LOW_VOLTAGE		3.1		//Highest voltage that will still be considered as low
+
 
 void dev_init();
 bool dev_getDip0();
@@ -37,6 +42,7 @@ void dev_startPulse();
 void dev_stopPulse();
 void dev_pulse();
 uint8_t dev_getRandomNumber(uint8_t low, uint8_t high);
+bool dev_getBatteryLow();
 
 
 #endif /* DEV_H_ */

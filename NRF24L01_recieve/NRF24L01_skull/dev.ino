@@ -52,6 +52,9 @@ void dev_init(){
 	//prescaler 64 Timer2 overflow interrupt enabled
 	TCCR2B = (1<<CS20);//|(1<<CS20);
 	TIMSK2 |= (1<<TOIE2);
+
+	//set reverence voltage to 1.1V
+	analogReference(INTERNAL);
 }
 
 
@@ -152,8 +155,8 @@ void dev_allOff(){
 }
 
 void dev_startPulse(){
-	//make sure the pulse is actually being restarted
-	dev_stopPulse();
+//	//make sure the pulse is actually being restarted
+//	dev_stopPulse();
 
 	dev_pulse();
 }
@@ -241,4 +244,30 @@ uint8_t dev_getRandomNumber(uint8_t low, uint8_t high){//low: unterge Grenze, hi
 		return (uint8_t)lfsr;
 	}
 	return 0x00;
+}
+
+
+//////////////////////////////////////////////////////////////
+//															//
+//							Battery							//
+//															//
+//////////////////////////////////////////////////////////////
+
+bool dev_getBatteryLow(){
+	static bool isLow = false;
+	static int nLow = 0;
+	static long lastMeasTime = 0;
+	if(millis()-lastMeasTime >= BAT_UPDATE_INTERVAL){
+		if(analogRead(BAT_MEAS_PIN)*BAT_CONV_FACTOR/0x3FF <= BAT_LOW_VOLTAGE){
+			nLow++;
+			if(nLow >= 5){	//only accept voltage as low after consecutive low measurements
+				isLow = true;
+			}
+		}
+		else{
+			isLow = false;
+			nLow = 0;
+		}
+	}
+	return isLow;
 }

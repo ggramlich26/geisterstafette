@@ -63,6 +63,7 @@ uint8_t number_rx_pipes = 0;
 void setup(){
 
 //	Serial.begin(115200);
+//	Serial.println("Motion detector");
 
 	// Setup and configure radio
 	radio.begin();
@@ -84,8 +85,8 @@ void setup(){
 		txPipes[number_recievers][2] = 0x63;
 		txPipes[number_recievers][3] = 0x02;
 		txPipes[number_recievers][4] = 0x66;
-		number_recievers++;
 		dest_ID_array[number_recievers] = 0x90 + 0;
+		number_recievers++;
 	}
 	if(dev_getDip1()){
 		txPipes[number_recievers][0] = DEVICE_ID;
@@ -93,8 +94,8 @@ void setup(){
 		txPipes[number_recievers][2] = 0x63;
 		txPipes[number_recievers][3] = 0x02;
 		txPipes[number_recievers][4] = 0x66;
-		number_recievers++;
 		dest_ID_array[number_recievers] = 0x90 + 1;
+		number_recievers++;
 	}
 	if(dev_getDip2()){
 		txPipes[number_recievers][0] = DEVICE_ID;
@@ -102,8 +103,8 @@ void setup(){
 		txPipes[number_recievers][2] = 0x63;
 		txPipes[number_recievers][3] = 0x02;
 		txPipes[number_recievers][4] = 0x66;
-		number_recievers++;
 		dest_ID_array[number_recievers] = 0x90 + 2;
+		number_recievers++;
 	}
 	if(dev_getDip3()){
 		txPipes[number_recievers][0] = DEVICE_ID;
@@ -111,8 +112,8 @@ void setup(){
 		txPipes[number_recievers][2] = 0x63;
 		txPipes[number_recievers][3] = 0x02;
 		txPipes[number_recievers][4] = 0x66;
-		number_recievers++;
 		dest_ID_array[number_recievers] = 0x90 + 3;
+		number_recievers++;
 	}
 #else
 	for(uint8_t i = 0; i < MAX_RECIEVERS; i++){
@@ -121,8 +122,8 @@ void setup(){
 		txPipes[i][2] = 0x63;
 		txPipes[i][3] = 0x02;
 		txPipes[i][4] = 0x66;
-		number_recievers++;
 		dest_ID_array[i] = 0x90 + i;
+		number_recievers++;
 	}
 #endif
 
@@ -139,8 +140,8 @@ void setup(){
 	//initialize recieving
 
 	//listen to handheld remote
-	if(number_rx_pipes < MAX_RECIEVERS){
-		number_rx_pipes = MAX_RECIEVERS -1;
+	if(number_rx_pipes >= 6){
+		number_rx_pipes = 5;
 	}
 	rxPipes[number_rx_pipes][0] = 0x01;
 	rxPipes[number_rx_pipes][1] = DEVICE_ID;
@@ -269,13 +270,42 @@ bool multicast(byte addresses[][5], uint8_t n_recievers, uint8_t dest_ID[], uint
 void loop(void){
 	static bool sensor_status = false;
 	bool new_sensor = dev_getSensor();
+	if(dev_getBatteryLow()){
+		radio.powerDown();
+		while(true){
+			dev_ledOn();
+			delay(100);
+			dev_ledOff();
+			delay(5000);
+			if(!dev_getBatteryLow()){
+				radio.powerUp();
+				delay(10);
+				break;
+			}
+		}
+	}
 	//if sensor toggled
 	if(new_sensor && !sensor_status){
-		sensor_status = new_sensor;
 		uint8_t cmd = START_FUNCTION;
 		bool success = multicast(txPipes, number_recievers, dest_ID_array, &cmd, 1, false);
 		if(!success){
 			//sending failed
+			dev_ledOn();
+			delay(50);
+			dev_ledOff();
+			delay(50);
+			dev_ledOn();
+			delay(50);
+			dev_ledOff();
+			delay(50);
+			dev_ledOn();
+			delay(50);
+			dev_ledOff();
+		}
+		else{
+			dev_ledOn();
+			delay(50);
+			dev_ledOff();
 		}
 	}
 	sensor_status = new_sensor;

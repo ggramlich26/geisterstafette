@@ -21,12 +21,10 @@ void dev_init(){
 	digitalWrite(DIP3, HIGH);
 
 	pinMode(LED_PIN, OUTPUT);
-	if(SENSOR_PIN == A6 || SENSOR_PIN == A7){
-		analogReference(DEFAULT);	//set reverence voltage to AVCC, which is 3.3V on this board
-	}
-	else{
-		pinMode(SENSOR_PIN, INPUT);
-	}
+	digitalWrite(LED_PIN, LOW);
+	pinMode(SENSOR_PIN, INPUT);
+
+	analogReference(INTERNAL);	//set reverence voltage to 1.1V
 }
 
 
@@ -75,10 +73,31 @@ void dev_ledOff(){
 //////////////////////////////////////////////////////////////
 
 bool dev_getSensor(){
-	if(SENSOR_PIN == A6 || SENSOR_PIN == A7){
-		return analogRead(SENSOR_PIN) > 0x3FF*0.5/3.3; //voltages higher than 0.5V will be considered as high
+	return digitalRead(SENSOR_PIN);
+}
+
+
+//////////////////////////////////////////////////////////////
+//															//
+//							Battery							//
+//															//
+//////////////////////////////////////////////////////////////
+
+bool dev_getBatteryLow(){
+	static bool isLow = false;
+	static int nLow = 0;
+	static long lastMeasTime = 0;
+	if(millis()-lastMeasTime >= BAT_UPDATE_INTERVAL){
+		if(analogRead(BAT_MEAS_PIN)*BAT_CONV_FACTOR/0x3FF <= BAT_LOW_VOLTAGE){
+			nLow++;
+			if(nLow >= 5){	//only accept voltage as low after consecutive low measurements
+				isLow = true;
+			}
+		}
+		else{
+			isLow = false;
+			nLow = 0;
+		}
 	}
-	else{
-		return digitalRead(SENSOR_PIN);
-	}
+	return isLow;
 }
