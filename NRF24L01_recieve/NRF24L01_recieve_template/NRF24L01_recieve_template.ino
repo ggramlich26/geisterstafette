@@ -70,9 +70,9 @@ void setup(){
 //	radio.enableDynamicPayloads();                // Ack payloads are dynamic payloads
 
 	
-	//init transmit_array
+	//init rxPipes
 	//todo: should be adapted to match for example the configuration set with dip switches
-	for(uint8_t i = 0; i < 6; i++){		//replace 5 by the actual number of transmitters (without routers) that should be listened to
+	for(uint8_t i = 0; i < 6; i++){		//replace 6 by the actual number of transmitters (without routers) that should be listened to
 		rxPipes[i][0] = 0x01 + i;
 		rxPipes[i][1] = DEVICE_ID;
 		rxPipes[i][2] = 0x63;
