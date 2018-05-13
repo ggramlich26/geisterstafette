@@ -3,18 +3,15 @@
 #include "stimer.h"
 #include "dev.h"
 
-#define DEVICE_ID  0x94			//0x01-0x6F Transmitters
+#define DEVICE_ID  0x93			//0x01-0x6F Transmitters
 								//0x70-0x8F Routers
 								//0x90-0xFF Recievers
 #define MAX_RECIEVERS	6		//max number of recievers data will be sent to
 
 #define MAX_PAYLOAD_SIZE	5	//1 Byte for the address and 4 Bytes Data will be transmitted max per transmission
 
-#define BATTERY_VOLTAGE_PIN		6	//ADC6 = A6
 #define CE						16	//P16
 #define	CSN						15	//P15
-#define BATTERY_CONV_FACTOR		5*1.1
-#define	MIN_BAT_VOLTAGE			3.3
 
 //////////////////////////////////////////////////////////////////////////
 //								Idee									//
@@ -70,9 +67,6 @@ void setup(){
 //	Serial.begin(115200);
 
 	// Setup and configure radio
-
-	analogReference(INTERNAL);	//use internal 1,1V Reference Voltage
-
 	radio.begin();
 	radio.setPALevel(RF24_PA_MAX);
 	radio.setChannel(108);
@@ -163,9 +157,20 @@ void loop(void){
 	stimer_update();
 	dev_main();
 
-	if(analogRead(BATTERY_VOLTAGE_PIN)*BATTERY_CONV_FACTOR < MIN_BAT_VOLTAGE){
-//		dev_allOff();
-		//todo: possibly go to standbye mode, also for NRF24L01
+	if(dev_getBatteryLow()){
+		radio.powerDown();
+		dev_stopPulse();
+		while(true){
+			dev_setLED0(255);
+			delay(100);
+			dev_setLED0(0);
+			delay(5000);
+			if(!dev_getBatteryLow()){
+				radio.powerUp();
+				delay(10);
+				break;
+			}
+		}
 	}
 
 
