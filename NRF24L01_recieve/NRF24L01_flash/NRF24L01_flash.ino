@@ -1,6 +1,7 @@
 #include <SPI.h>
 #include "RF24.h"
 #include "stimer.h"
+#include "dev.h"
 
 #define DEVICE_ID  0x90			//0x01-0x6F Transmitters
 								//0x70-0x8F Routers
@@ -9,16 +10,8 @@
 
 #define MAX_PAYLOAD_SIZE	5	//1 Byte for the address and 4 Bytes Data will be transmitted max per transmission
 
-#define STEPUP_PIN				3	//OC2B = PD3 = P3
-#define FLASH_PIN				5	//P5
-#define STEPUP_VOLTAGE_PIN		7	//ADC7 = A7
-#define BATTERY_VOLTAGE_PIN		6	//ADC6 = A6
-#define LED_PIN					4	//P4
 #define CE						16	//P16
 #define	CSN						15	//P15
-#define BATTERY_CONV_FACTOR		5*1.1
-#define	STEPUP_CONV_FACTOR		300*1.1
-#define	MIN_BAT_VOLTAGE			3.3
 
 //////////////////////////////////////////////////////////////////////////
 //								Idee									//
@@ -53,7 +46,6 @@
 #define START_FUNCTION_SEC	0x05
 #define STOP_FUNCTION_SEC	0x06
                       
-void updateStepupFrequency();
 
 /* Hardware configuration: Set up nRF24L01 radio on SPI bus plus pins 7 & 8 */
 //RF24 radio(7,8);
@@ -66,27 +58,13 @@ uint8_t number_routers = 2;
 uint8_t  rxPipes[6][5];	//maximum 6 parallel receptions possible
 uint8_t number_rx_pipes = 0;
 
-bool stepup_enabled = false;
-
 void setup(){
 
-	Serial.begin(115200);
-	Serial.println(F("NRF24L01 Reciever"));
+//	Serial.begin(115200);
+//	Serial.println("Blitz Empfaenger");
+
 
 	// Setup and configure radio
-
-	analogReference(INTERNAL);	//use internal 1,1V Reference Voltage
-
-	pinMode(LED_PIN, OUTPUT);
-	pinMode(STEPUP_PIN, OUTPUT);
-	pinMode(FLASH_PIN, OUTPUT);
-
-	stimer_setCallback(updateStepupFrequency);
-
-	//Initialize Timer 2 for PWM Mode on OC0A, fast PWM mode, count till MAX
-	TCCR2A = (1<<COM2B1)|(1<<WGM21)|(1<<WGM20);
-	  
-
 	radio.begin();
 	radio.setPALevel(RF24_PA_MAX);
 	radio.setChannel(108);
@@ -96,14 +74,45 @@ void setup(){
 //	radio.enableDynamicPayloads();                // Ack payloads are dynamic payloads
 
 	
-	//init transmit_array
-	//todo: should be adapted to match for example the configuration set with dip switches
-	for(uint8_t i = 0; i < 6; i++){		//replace 5 by the actual number of transmitters (without routers) that should be listened to
-		rxPipes[i][0] = 0x01 + i;
-		rxPipes[i][1] = DEVICE_ID;
-		rxPipes[i][2] = 0x63;
-		rxPipes[i][3] = 0x02;
-		rxPipes[i][4] = 0x66;
+	//init rxPipes
+	//always listen to manual remote
+	rxPipes[number_rx_pipes][0] = 0x01;
+	rxPipes[number_rx_pipes][1] = DEVICE_ID;
+	rxPipes[number_rx_pipes][2] = 0x63;
+	rxPipes[number_rx_pipes][3] = 0x02;
+	rxPipes[number_rx_pipes][4] = 0x66;
+	number_rx_pipes++;
+
+	if(dev_getDip0()){
+		rxPipes[number_rx_pipes][0] = 0x01 + 1;
+		rxPipes[number_rx_pipes][1] = DEVICE_ID;
+		rxPipes[number_rx_pipes][2] = 0x63;
+		rxPipes[number_rx_pipes][3] = 0x02;
+		rxPipes[number_rx_pipes][4] = 0x66;
+		number_rx_pipes++;
+	}
+	if(dev_getDip1()){
+		rxPipes[number_rx_pipes][0] = 0x01 + 2;
+		rxPipes[number_rx_pipes][1] = DEVICE_ID;
+		rxPipes[number_rx_pipes][2] = 0x63;
+		rxPipes[number_rx_pipes][3] = 0x02;
+		rxPipes[number_rx_pipes][4] = 0x66;
+		number_rx_pipes++;
+	}
+	if(dev_getDip2()){
+		rxPipes[number_rx_pipes][0] = 0x01 + 3;
+		rxPipes[number_rx_pipes][1] = DEVICE_ID;
+		rxPipes[number_rx_pipes][2] = 0x63;
+		rxPipes[number_rx_pipes][3] = 0x02;
+		rxPipes[number_rx_pipes][4] = 0x66;
+		number_rx_pipes++;
+	}
+	if(dev_getDip3()){
+		rxPipes[number_rx_pipes][0] = 0x01 + 4;
+		rxPipes[number_rx_pipes][1] = DEVICE_ID;
+		rxPipes[number_rx_pipes][2] = 0x63;
+		rxPipes[number_rx_pipes][3] = 0x02;
+		rxPipes[number_rx_pipes][4] = 0x66;
 		number_rx_pipes++;
 	}
 
@@ -127,86 +136,30 @@ void setup(){
 		radio.openReadingPipe(i, rxPipes[i]);
 	}
 
-
-	//possibly init gpio
+	dev_init();
 
 
 	radio.startListening();
-
-
-}
-
-void ledOn(){
-	digitalWrite(LED_PIN, HIGH);
-}
-
-void ledOff(){
-	digitalWrite(LED_PIN, LOW);
-}
-
-/** The stepup pin will be cleared when reaching val, so a value of 255
- *  results in one low cycle per Period
-**/
-void setStepupValue(uint8_t val){
-	OCR2B = val;
-}
-
-void updateStepupFrequency(){
-	uint8_t val[] = {250, 252, 254, 255};
-	uint16_t voltage[] = {120, 220, 270, 300};
-	uint16_t times[] = {700,1400,2100,3200};
-	uint8_t steps = 4;
-	uint16_t cur_voltage = analogRead(STEPUP_VOLTAGE_PIN)/1024.0*STEPUP_CONV_FACTOR;
-	if(cur_voltage >= 300){
-		stopStepup();
-		stimer_startTimer(5000);
-		return;
-	}
-	uint8_t i = 0;
-	for(i = 0; i < steps; i++){
-		if(cur_voltage < voltage[i]){
-			break;
-		}
-	}
-	setStepupValue(val[i]);
-	if(i > 0){
-		stimer_startTimer((times[i]-times[i-1])*(float)(voltage[i]-cur_voltage)/(voltage[i]-voltage[i-1]));
-	}
-	else{
-		stimer_startTimer((times[0])*(float)(voltage[0])/(voltage[0]));
-	}
-}
-
-void startStepup(){
-	//start PWM with prescaler 8
-	TCCR2B = (1<<CS21);
-	updateStepupFrequency();
-}
-
-void stopStepup(){
-	stimer_stopTimer();
-	TCCR2B = 0x00;
-	digitalWrite(STEPUP_PIN, LOW);
-}
-
-void flash(){
-	stopStepup();
-	digitalWrite(FLASH_PIN, HIGH);
-	delay(5);
-	digitalWrite(FLASH_PIN, LOW);
-	if(stepup_enabled){
-		startStepup();
-	}
 }
 
 void loop(void){
 	stimer_update();
 
-	if(analogRead(BATTERY_VOLTAGE_PIN)*BATTERY_CONV_FACTOR < MIN_BAT_VOLTAGE){
-		stepup_enabled = false;
-		stopStepup();
-		ledOff();
-		//todo: possibly go to standbye mode, also for NRF24L01
+
+	if(dev_getBatteryLow()){
+		radio.powerDown();
+		dev_stopStepup();
+		while(true){
+			dev_ledOn();
+			delay(100);
+			dev_ledOff();
+			delay(5000);
+			if(!dev_getBatteryLow()){
+				radio.powerUp();
+				delay(10);
+				break;
+			}
+		}
 	}
 
 
@@ -223,23 +176,23 @@ void loop(void){
 			switch(cmd){
 					break;
 				case START_FUNCTION:
-						flash();
+						//digitalWrite(STEPUP_PIN, HIGH);
+						dev_flash();
 					break;
 				case STOP_FUNCTION:
+					//digitalWrite(STEPUP_PIN, LOW);
 					break;
 				case START_LED:
-						ledOn();
+						dev_ledOn();
 					break;
 				case STOP_LED:
-						ledOff();
+						dev_ledOff();
 					break;
 				case START_FUNCTION_SEC:
-						stepup_enabled = true;
-						startStepup();
+						dev_startStepup();
 					break;
 				case STOP_FUNCTION_SEC:
-						stepup_enabled = false;
-						stopStepup();
+						dev_stopStepup();
 					break;
 			}
 		}
