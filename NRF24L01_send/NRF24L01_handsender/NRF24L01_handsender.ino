@@ -111,7 +111,7 @@ void setup(){
 
 	radio.begin();
 	//radio.setPALevel(RF24_PA_MAX);
-	radio.setPALevel(RF24_PA_MIN);
+	radio.setPALevel(RF24_PA_MAX);
 	radio.setChannel(108);
 	radio.setPayloadSize(MAX_PAYLOAD_SIZE);
 
@@ -141,8 +141,8 @@ void setup(){
 		txPipes[i][2] = 0x63;
 		txPipes[i][3] = 0x02;
 		txPipes[i][4] = 0x66;
-		number_recievers++;
 		dest_ID_array[i] = 0x90 + i;	//change to actual dest Addresses
+		number_recievers++;
 	}
 
 	// initialize router addresses
@@ -155,16 +155,16 @@ void setup(){
 	}
 
 	//init array of destinations that are transmitters
-	//As all other transmitters should have sequential numbers starting from 01, it is legit
+	//As all other transmitters should have sequential numbers starting from 02, it is legit
 	//to initialize them in a loop if the total number of recievers is known
 	for(uint8_t i = 0; i < TOTAL_TRANSMITTERS; i++){
 		trans_txPipes[i][0] = DEVICE_ID;
-		trans_txPipes[i][1] = 0x01 + i;
+		trans_txPipes[i][1] = 0x02 + i;
 		trans_txPipes[i][2] = 0x63;
 		trans_txPipes[i][3] = 0x02;
 		trans_txPipes[i][4] = 0x66;
+		trans_dest_ID_array[i] = 0x02 + i;
 		number_transmitters++;
-		trans_dest_ID_array[i] = 0x01 + i;
 	}
 }
 
