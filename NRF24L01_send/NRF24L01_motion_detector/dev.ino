@@ -21,7 +21,12 @@ void dev_init(){
 	digitalWrite(DIP3, HIGH);
 
 	pinMode(LED_PIN, OUTPUT);
-	pinMode(SENSOR_PIN, INPUT);
+	if(SENSOR_PIN == A6 || SENSOR_PIN == A7){
+		analogReference(DEFAULT);	//set reverence voltage to AVCC, which is 3.3V on this board
+	}
+	else{
+		pinMode(SENSOR_PIN, INPUT);
+	}
 }
 
 
@@ -70,5 +75,10 @@ void dev_ledOff(){
 //////////////////////////////////////////////////////////////
 
 bool dev_getSensor(){
-	return digitalRead(SENSOR_PIN);
+	if(SENSOR_PIN == A6 || SENSOR_PIN == A7){
+		return analogRead(SENSOR_PIN) > 0x3FF*0.5/3.3; //voltages higher than 0.5V will be considered as high
+	}
+	else{
+		return digitalRead(SENSOR_PIN);
+	}
 }

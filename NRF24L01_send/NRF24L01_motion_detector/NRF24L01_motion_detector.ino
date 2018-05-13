@@ -122,7 +122,7 @@ void setup(){
 		txPipes[i][3] = 0x02;
 		txPipes[i][4] = 0x66;
 		number_recievers++;
-		dest_ID_array[i] = 0x90 + i;	//change to actual dest Addresses
+		dest_ID_array[i] = 0x90 + i;
 	}
 #endif
 
@@ -139,6 +139,9 @@ void setup(){
 	//initialize recieving
 
 	//listen to handheld remote
+	if(number_rx_pipes < MAX_RECIEVERS){
+		number_rx_pipes = MAX_RECIEVERS -1;
+	}
 	rxPipes[number_rx_pipes][0] = 0x01;
 	rxPipes[number_rx_pipes][1] = DEVICE_ID;
 	rxPipes[number_rx_pipes][2] = 0x63;
@@ -268,6 +271,7 @@ void loop(void){
 	bool new_sensor = dev_getSensor();
 	//if sensor toggled
 	if(new_sensor && !sensor_status){
+		sensor_status = new_sensor;
 		uint8_t cmd = START_FUNCTION;
 		bool success = multicast(txPipes, number_recievers, dest_ID_array, &cmd, 1, false);
 		if(!success){
