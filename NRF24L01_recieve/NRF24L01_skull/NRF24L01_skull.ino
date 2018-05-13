@@ -3,7 +3,7 @@
 #include "stimer.h"
 #include "dev.h"
 
-#define DEVICE_ID  0x93			//0x01-0x6F Transmitters
+#define DEVICE_ID  0x90			//0x01-0x6F Transmitters
 								//0x70-0x8F Routers
 								//0x90-0xFF Recievers
 #define MAX_RECIEVERS	6		//max number of recievers data will be sent to
@@ -76,8 +76,7 @@ void setup(){
 //	radio.enableDynamicPayloads();                // Ack payloads are dynamic payloads
 
 	
-	//init transmit_array
-
+	//init rxPipes
 	//always listen to manual remote
 	rxPipes[number_rx_pipes][0] = 0x01;
 	rxPipes[number_rx_pipes][1] = DEVICE_ID;
